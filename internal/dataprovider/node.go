@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2023 Nicola Murino
+// Copyright (C) 2019 Nicola Murino
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -99,7 +99,7 @@ func (n *NodeData) validate() error {
 	if n.Proto != NodeProtoHTTP && n.Proto != NodeProtoHTTPS {
 		return util.NewValidationError(fmt.Sprintf("invalid node proto: %s", n.Proto))
 	}
-	n.Key = kms.NewPlainSecret(string(util.GenerateRandomBytes(32)))
+	n.Key = kms.NewPlainSecret(util.GenerateUniqueID())
 	n.Key.SetAdditionalData(n.Host)
 	if err := n.Key.Encrypt(); err != nil {
 		return fmt.Errorf("unable to encrypt node key: %w", err)
@@ -191,7 +191,7 @@ func (n *Node) generateAuthToken(username, role string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to sign authentication token: %w", err)
 	}
-	return string(payload), nil
+	return util.BytesToString(payload), nil
 }
 
 func (n *Node) prepareRequest(ctx context.Context, username, role, relativeURL, method string,
@@ -232,9 +232,13 @@ func (n *Node) SendGetRequest(username, role, relativeURL string, responseHolder
 	if resp.StatusCode < http.StatusOK || resp.StatusCode > http.StatusNoContent {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
-	err = json.NewDecoder(resp.Body).Decode(responseHolder)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 10485760))
 	if err != nil {
-		return fmt.Errorf("unable to decode response as json")
+		return fmt.Errorf("unable to read response body: %w", err)
+	}
+	err = json.Unmarshal(respBody, responseHolder)
+	if err != nil {
+		return errors.New("unable to decode response as json")
 	}
 	return nil
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2023 Nicola Murino
+// Copyright (C) 2019 Nicola Murino
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -17,8 +17,6 @@ package sftpd
 import (
 	"fmt"
 	"io"
-
-	"github.com/eikenb/pipeat"
 
 	"github.com/drakkan/sftpgo/v2/internal/common"
 	"github.com/drakkan/sftpgo/v2/internal/metric"
@@ -60,7 +58,7 @@ type transfer struct {
 	isFinished bool
 }
 
-func newTransfer(baseTransfer *common.BaseTransfer, pipeWriter *vfs.PipeWriter, pipeReader *pipeat.PipeReaderAt,
+func newTransfer(baseTransfer *common.BaseTransfer, pipeWriter vfs.PipeWriter, pipeReader vfs.PipeReader,
 	errForRead error) *transfer {
 	var writer writerAtCloser
 	var reader readerAtCloser
@@ -178,6 +176,9 @@ func (t *transfer) closeIO() error {
 		t.Unlock()
 	} else if t.readerAt != nil {
 		err = t.readerAt.Close()
+		if metadater, ok := t.readerAt.(vfs.Metadater); ok {
+			t.BaseTransfer.SetMetadata(metadater.Metadata())
+		}
 	}
 	return err
 }

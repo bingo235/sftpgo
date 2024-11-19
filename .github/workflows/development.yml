@@ -11,28 +11,28 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        go: ['1.20']
+        go: ['1.23']
         os: [ubuntu-latest, macos-latest]
         upload-coverage: [true]
         include:
-          - go: '1.20'
+          - go: '1.23'
             os: windows-latest
             upload-coverage: false
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
 
       - name: Build for Linux/macOS x86_64
         if: startsWith(matrix.os, 'windows-') != true
         run: |
-          go build -trimpath -tags nopgxregisterdefaulttypes -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=`git describe --always --abbrev=8 --dirty` -X github.com/drakkan/sftpgo/v2/internal/version.date=`date -u +%FT%TZ`" -o sftpgo
+          go build -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=`git describe --always --abbrev=8 --dirty` -X github.com/drakkan/sftpgo/v2/internal/version.date=`date -u +%FT%TZ`" -o sftpgo
           cd tests/eventsearcher
           go build -trimpath -ldflags "-s -w" -o eventsearcher
           cd -
@@ -44,7 +44,7 @@ jobs:
 
       - name: Build for macOS arm64
         if: startsWith(matrix.os, 'macos-') == true
-        run: CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 SDKROOT=$(xcrun --sdk macosx --show-sdk-path) go build -trimpath -tags nopgxregisterdefaulttypes -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=`git describe --always --abbrev=8 --dirty` -X github.com/drakkan/sftpgo/v2/internal/version.date=`date -u +%FT%TZ`" -o sftpgo_arm64
+        run: CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 SDKROOT=$(xcrun --sdk macosx --show-sdk-path) go build -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=`git describe --always --abbrev=8 --dirty` -X github.com/drakkan/sftpgo/v2/internal/version.date=`date -u +%FT%TZ`" -o sftpgo_arm64
 
       - name: Build for Windows
         if: startsWith(matrix.os, 'windows-')
@@ -56,8 +56,8 @@ jobs:
           $COMMITS_FROM_TAG= ((git rev-list $REV_LIST --count) | Out-String).Trim()
           $FILE_VERSION = $LATEST_TAG.substring(1)  + "." + $COMMITS_FROM_TAG
           go install github.com/tc-hib/go-winres@latest
-          go-winres simply --arch amd64 --product-version $LATEST_TAG-dev-$GIT_COMMIT --file-version $FILE_VERSION --file-description "SFTPGo server" --product-name SFTPGo --copyright "AGPL-3.0" --original-filename sftpgo.exe --icon  .\windows-installer\icon.ico
-          go build -trimpath -tags nopgxregisterdefaulttypes -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=$GIT_COMMIT -X github.com/drakkan/sftpgo/v2/internal/version.date=$DATE_TIME" -o sftpgo.exe
+          go-winres simply --arch amd64 --product-version $LATEST_TAG-dev-$GIT_COMMIT --file-version $FILE_VERSION --file-description "SFTPGo server" --product-name SFTPGo --copyright "AGPL-3.0 with additional terms" --original-filename sftpgo.exe --icon  .\windows-installer\icon.ico
+          go build -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=$GIT_COMMIT -X github.com/drakkan/sftpgo/v2/internal/version.date=$DATE_TIME" -o sftpgo.exe
           cd tests/eventsearcher
           go build -trimpath -ldflags "-s -w" -o eventsearcher.exe
           cd ../..
@@ -68,43 +68,44 @@ jobs:
           $Env:CGO_ENABLED='0'
           $Env:GOOS='windows'
           $Env:GOARCH='arm64'
-          go-winres simply --arch arm64 --product-version $LATEST_TAG-dev-$GIT_COMMIT --file-version $FILE_VERSION --file-description "SFTPGo server" --product-name SFTPGo --copyright "AGPL-3.0" --original-filename sftpgo.exe --icon  .\windows-installer\icon.ico
-          go build -trimpath -tags nopgxregisterdefaulttypes,nosqlite -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=$GIT_COMMIT -X github.com/drakkan/sftpgo/v2/internal/version.date=$DATE_TIME" -o .\arm64\sftpgo.exe
+          go-winres simply --arch arm64 --product-version $LATEST_TAG-dev-$GIT_COMMIT --file-version $FILE_VERSION --file-description "SFTPGo server" --product-name SFTPGo --copyright "AGPL-3.0 with additional terms" --original-filename sftpgo.exe --icon  .\windows-installer\icon.ico
+          go build -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules,nosqlite -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=$GIT_COMMIT -X github.com/drakkan/sftpgo/v2/internal/version.date=$DATE_TIME" -o .\arm64\sftpgo.exe
           mkdir x86
           $Env:GOARCH='386'
-          go-winres simply --arch 386 --product-version $LATEST_TAG-dev-$GIT_COMMIT --file-version $FILE_VERSION --file-description "SFTPGo server" --product-name SFTPGo --copyright "AGPL-3.0" --original-filename sftpgo.exe --icon  .\windows-installer\icon.ico
-          go build -trimpath -tags nopgxregisterdefaulttypes,nosqlite -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=$GIT_COMMIT -X github.com/drakkan/sftpgo/v2/internal/version.date=$DATE_TIME" -o .\x86\sftpgo.exe
+          go-winres simply --arch 386 --product-version $LATEST_TAG-dev-$GIT_COMMIT --file-version $FILE_VERSION --file-description "SFTPGo server" --product-name SFTPGo --copyright "AGPL-3.0 with additional terms" --original-filename sftpgo.exe --icon  .\windows-installer\icon.ico
+          go build -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules,nosqlite -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=$GIT_COMMIT -X github.com/drakkan/sftpgo/v2/internal/version.date=$DATE_TIME" -o .\x86\sftpgo.exe
           Remove-Item Env:\CGO_ENABLED
           Remove-Item Env:\GOOS
           Remove-Item Env:\GOARCH
 
       - name: Run test cases using SQLite provider
-        run: go test -v -tags nopgxregisterdefaulttypes -p 1 -timeout 15m ./... -coverprofile=coverage.txt -covermode=atomic
+        run: go test -v -tags nopgxregisterdefaulttypes,disable_grpc_modules -p 1 -timeout 15m ./... -coverprofile=coverage.txt -covermode=atomic
 
       - name: Upload coverage to Codecov
         if: ${{ matrix.upload-coverage }}
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           file: ./coverage.txt
           fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Run test cases using bolt provider
         run: |
-          go test -v -tags nopgxregisterdefaulttypes -p 1 -timeout 2m ./internal/config -covermode=atomic
-          go test -v -tags nopgxregisterdefaulttypes -p 1 -timeout 5m ./internal/common -covermode=atomic
-          go test -v -tags nopgxregisterdefaulttypes -p 1 -timeout 5m ./internal/httpd -covermode=atomic
-          go test -v -tags nopgxregisterdefaulttypes -p 1 -timeout 8m ./internal/sftpd -covermode=atomic
-          go test -v -tags nopgxregisterdefaulttypes -p 1 -timeout 5m ./internal/ftpd -covermode=atomic
-          go test -v -tags nopgxregisterdefaulttypes -p 1 -timeout 5m ./internal/webdavd -covermode=atomic
-          go test -v -tags nopgxregisterdefaulttypes -p 1 -timeout 2m ./internal/telemetry -covermode=atomic
-          go test -v -tags nopgxregisterdefaulttypes -p 1 -timeout 2m ./internal/mfa -covermode=atomic
-          go test -v -tags nopgxregisterdefaulttypes -p 1 -timeout 2m ./internal/command -covermode=atomic
+          go test -v -tags nopgxregisterdefaulttypes,disable_grpc_modules -p 1 -timeout 2m ./internal/config -covermode=atomic
+          go test -v -tags nopgxregisterdefaulttypes,disable_grpc_modules -p 1 -timeout 5m ./internal/common -covermode=atomic
+          go test -v -tags nopgxregisterdefaulttypes,disable_grpc_modules -p 1 -timeout 5m ./internal/httpd -covermode=atomic
+          go test -v -tags nopgxregisterdefaulttypes,disable_grpc_modules -p 1 -timeout 8m ./internal/sftpd -covermode=atomic
+          go test -v -tags nopgxregisterdefaulttypes,disable_grpc_modules -p 1 -timeout 5m ./internal/ftpd -covermode=atomic
+          go test -v -tags nopgxregisterdefaulttypes,disable_grpc_modules -p 1 -timeout 5m ./internal/webdavd -covermode=atomic
+          go test -v -tags nopgxregisterdefaulttypes,disable_grpc_modules -p 1 -timeout 2m ./internal/telemetry -covermode=atomic
+          go test -v -tags nopgxregisterdefaulttypes,disable_grpc_modules -p 1 -timeout 2m ./internal/mfa -covermode=atomic
+          go test -v -tags nopgxregisterdefaulttypes,disable_grpc_modules -p 1 -timeout 2m ./internal/command -covermode=atomic
         env:
           SFTPGO_DATA_PROVIDER__DRIVER: bolt
           SFTPGO_DATA_PROVIDER__NAME: 'sftpgo_bolt.db'
 
       - name: Run test cases using memory provider
-        run: go test -v -tags nopgxregisterdefaulttypes -p 1 -timeout 15m ./... -covermode=atomic
+        run: go test -v -tags nopgxregisterdefaulttypes,disable_grpc_modules -p 1 -timeout 15m ./... -covermode=atomic
         env:
           SFTPGO_DATA_PROVIDER__DRIVER: memory
           SFTPGO_DATA_PROVIDER__NAME: ''
@@ -134,6 +135,7 @@ jobs:
           copy .\sftpgo.json .\output
           copy .\sftpgo.db .\output
           copy .\LICENSE .\output\LICENSE.txt
+          copy .\NOTICE .\output\NOTICE.txt
           mkdir output\templates
           xcopy .\templates .\output\templates\ /E
           mkdir output\static
@@ -177,21 +179,21 @@ jobs:
 
       - name: Upload Windows installer x86_64 artifact
         if: ${{ startsWith(matrix.os, 'windows-') && github.event_name != 'pull_request' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sftpgo_windows_installer_x86_64
           path: ./sftpgo_windows_x86_64.exe
 
       - name: Upload Windows installer arm64 artifact
         if: ${{ startsWith(matrix.os, 'windows-') && github.event_name != 'pull_request' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sftpgo_windows_installer_arm64
           path: ./sftpgo_windows_arm64.exe
 
       - name: Upload Windows installer x86 artifact
         if: ${{ startsWith(matrix.os, 'windows-') && github.event_name != 'pull_request' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sftpgo_windows_installer_x86
           path: ./sftpgo_windows_x86.exe
@@ -217,7 +219,7 @@ jobs:
 
       - name: Upload build artifact
         if: startsWith(matrix.os, 'ubuntu-') != true
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sftpgo-${{ matrix.os }}-go-${{ matrix.go }}
           path: output
@@ -227,19 +229,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: '1.20'
+          go-version: '1.23'
 
       - name: Build
         run: |
-          go build -trimpath -tags nopgxregisterdefaulttypes,nogcs,nos3,noportable,nobolt,nomysql,nopgsql,nosqlite,nometrics,noazblob,unixcrypt -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/internal/version.commit=`git describe --always --abbrev=8 --dirty` -X github.com/drakkan/sftpgo/v2/internal/version.date=`date -u +%FT%TZ`" -o sftpgo
+          go build -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules,nogcs,nos3,noportable,nobolt,nomysql,nopgsql,nosqlite,nometrics,noazblob,unixcrypt -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/internal/version.commit=`git describe --always --abbrev=8 --dirty` -X github.com/drakkan/sftpgo/v2/internal/version.date=`date -u +%FT%TZ`" -o sftpgo
           ./sftpgo -v
           cp -r openapi static templates internal/bundle/
-          go build -trimpath -tags nopgxregisterdefaulttypes,bundle -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=`git describe --always --abbrev=8 --dirty` -X github.com/drakkan/sftpgo/v2/internal/version.date=`date -u +%FT%TZ`" -o sftpgo
+          go build -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules,bundle -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=`git describe --always --abbrev=8 --dirty` -X github.com/drakkan/sftpgo/v2/internal/version.date=`date -u +%FT%TZ`" -o sftpgo
           ./sftpgo -v
 
   test-postgresql-mysql-crdb:
@@ -268,7 +270,7 @@ jobs:
           MYSQL_USER: sftpgo
           MYSQL_PASSWORD: sftpgo
         options: >-
-          --health-cmd "mysqladmin status -h 127.0.0.1 -P 3306 -u root -p$MYSQL_ROOT_PASSWORD"
+          --health-cmd "mariadb-admin status -h 127.0.0.1 -P 3306 -u root -p$MYSQL_ROOT_PASSWORD"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 6
@@ -291,16 +293,16 @@ jobs:
           - 3308:3306
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: '1.20'
+          go-version: '1.23'
 
       - name: Build
         run: |
-          go build -trimpath -tags nopgxregisterdefaulttypes -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=`git describe --always --abbrev=8 --dirty` -X github.com/drakkan/sftpgo/v2/internal/version.date=`date -u +%FT%TZ`" -o sftpgo
+          go build -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=`git describe --always --abbrev=8 --dirty` -X github.com/drakkan/sftpgo/v2/internal/version.date=`date -u +%FT%TZ`" -o sftpgo
           cd tests/eventsearcher
           go build -trimpath -ldflags "-s -w" -o eventsearcher
           cd -
@@ -312,7 +314,7 @@ jobs:
         run: |
           ./sftpgo initprovider
           ./sftpgo resetprovider --force
-          go test -v -tags nopgxregisterdefaulttypes -p 1 -timeout 15m ./... -covermode=atomic
+          go test -v -tags nopgxregisterdefaulttypes,disable_grpc_modules -p 1 -timeout 15m ./... -covermode=atomic
         env:
           SFTPGO_DATA_PROVIDER__DRIVER: mysql
           SFTPGO_DATA_PROVIDER__NAME: sftpgo
@@ -325,7 +327,7 @@ jobs:
         run: |
           ./sftpgo initprovider
           ./sftpgo resetprovider --force
-          go test -v -tags nopgxregisterdefaulttypes -p 1 -timeout 15m ./... -covermode=atomic
+          go test -v -tags nopgxregisterdefaulttypes,disable_grpc_modules -p 1 -timeout 15m ./... -covermode=atomic
         env:
           SFTPGO_DATA_PROVIDER__DRIVER: postgresql
           SFTPGO_DATA_PROVIDER__NAME: sftpgo
@@ -338,7 +340,7 @@ jobs:
         run: |
           ./sftpgo initprovider
           ./sftpgo resetprovider --force
-          go test -v -tags nopgxregisterdefaulttypes -p 1 -timeout 15m ./... -covermode=atomic
+          go test -v -tags nopgxregisterdefaulttypes,disable_grpc_modules -p 1 -timeout 15m ./... -covermode=atomic
         env:
           SFTPGO_DATA_PROVIDER__DRIVER: mysql
           SFTPGO_DATA_PROVIDER__NAME: sftpgo
@@ -355,7 +357,7 @@ jobs:
           docker exec crdb cockroach sql --insecure -e 'create database "sftpgo"'
           ./sftpgo initprovider
           ./sftpgo resetprovider --force
-          go test -v -tags nopgxregisterdefaulttypes -p 1 -timeout 15m ./... -covermode=atomic
+          go test -v -tags nopgxregisterdefaulttypes,disable_grpc_modules -p 1 -timeout 15m ./... -covermode=atomic
           docker stop crdb
         env:
           SFTPGO_DATA_PROVIDER__DRIVER: cockroachdb
@@ -390,7 +392,7 @@ jobs:
             go: latest
             go-arch: arm7
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -409,7 +411,7 @@ jobs:
           echo 'apt-get install -q -y curl gcc' >> build.sh
           if [ ${{ matrix.go }} == 'latest' ]
           then
-            echo 'GO_VERSION=$(curl -L https://go.dev/VERSION?m=text)' >> build.sh
+            echo 'GO_VERSION=$(curl -L https://go.dev/VERSION?m=text | head -n 1)' >> build.sh
           else
             echo 'GO_VERSION=${{ matrix.go }}' >> build.sh
           fi
@@ -419,7 +421,7 @@ jobs:
           echo 'export PATH=$PATH:/usr/local/go/bin' >> build.sh
           echo 'go version' >> build.sh
           echo 'cd /usr/local/src' >> build.sh
-          echo 'go build -buildvcs=false -trimpath -tags nopgxregisterdefaulttypes -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=${{ steps.get_commit.outputs.COMMIT }} -X github.com/drakkan/sftpgo/v2/internal/version.date=`date -u +%FT%TZ`" -o sftpgo' >> build.sh
+          echo 'go build -buildvcs=false -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=${{ steps.get_commit.outputs.COMMIT }} -X github.com/drakkan/sftpgo/v2/internal/version.date=`date -u +%FT%TZ`" -o sftpgo' >> build.sh
 
           chmod 755 build.sh
           docker run --rm --name ubuntu-build --mount type=bind,source=`pwd`,target=/usr/local/src ${{ matrix.distro }} /usr/local/src/build.sh
@@ -452,7 +454,7 @@ jobs:
             apt-get install -q -y curl gcc
             if [ ${{ matrix.go }} == 'latest' ]
             then
-              GO_VERSION=$(curl -L https://go.dev/VERSION?m=text)
+              GO_VERSION=$(curl -L https://go.dev/VERSION?m=text | head -n 1)
             else
               GO_VERSION=${{ matrix.go }}
             fi
@@ -470,7 +472,7 @@ jobs:
             then
               export GOARM=7
             fi
-            go build -buildvcs=false -trimpath -tags nopgxregisterdefaulttypes -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=${{ steps.get_commit.outputs.COMMIT }} -X github.com/drakkan/sftpgo/v2/internal/version.date=`date -u +%FT%TZ`" -o sftpgo
+            go build -buildvcs=false -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=${{ steps.get_commit.outputs.COMMIT }} -X github.com/drakkan/sftpgo/v2/internal/version.date=`date -u +%FT%TZ`" -o sftpgo
             mkdir -p output/{init,bash_completion,zsh_completion}
             cp sftpgo.json output/
             cp -r templates output/
@@ -484,7 +486,7 @@ jobs:
             cp sftpgo output/
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sftpgo-linux-${{ matrix.arch }}-go-${{ matrix.go }}
           path: output
@@ -499,13 +501,13 @@ jobs:
           echo "pkg-version=${PKG_VERSION}" >> $GITHUB_OUTPUT
 
       - name: Upload Debian Package
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sftpgo-${{ steps.build_linux_pkgs.outputs.pkg-version }}-${{ matrix.go-arch }}-deb
           path: pkgs/dist/deb/*
 
       - name: Upload RPM Package
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sftpgo-${{ steps.build_linux_pkgs.outputs.pkg-version }}-${{ matrix.go-arch }}-rpm
           path: pkgs/dist/rpm/*
@@ -515,11 +517,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: '1.20'
-      - uses: actions/checkout@v3
+          go-version: '1.23'
+      - uses: actions/checkout@v4
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v6
         with:
           version: latest
